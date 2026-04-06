@@ -1,0 +1,18 @@
+data_dir = "./data"
+
+[sources.file_logs]
+type = "file"
+include = ["./pipe.log"]
+read_from = "end"
+
+[sinks.socket_out]
+type = "socket"
+inputs = ["file_logs"]
+address = "127.0.0.1:6001"
+mode = "tcp"
+
+[sinks.socket_out.encoding]
+codec = "text"
+
+[sinks.socket_out.framing]
+method = "newline_delimited"

@@ -1,0 +1,16 @@
+[sources.file_logs]
+type = "file"
+include = ["/etc/vector/pipe.log"]
+read_from = "end"
+
+[sinks.socket_out]
+type = "socket"
+inputs = ["file_logs"]
+address = "host.docker.internal:6000"
+mode = "tcp"
+
+[sinks.socket_out.encoding]
+codec = "text"
+
+[sinks.socket_out.framing]
+method = "newline_delimited"
