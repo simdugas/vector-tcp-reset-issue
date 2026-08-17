@@ -23,14 +23,14 @@ PORT_AFTER="${PORT_AFTER:-6101}"
 echo "############################################"
 echo "# BEFORE fix: ${BEFORE_SHA:0:12}"
 echo "############################################"
-PORT="${PORT_BEFORE}" "${HARNESS_DIR}/run_test.sh" "${BEFORE_SHA}" "before"
+PORT="${PORT_BEFORE}" "${HARNESS_DIR}/run_test.sh" "${BEFORE_SHA}" "before-${BEFORE_SHA:0:12}"
 BEFORE_STATUS=$?
 
 echo
 echo "############################################"
 echo "# AFTER fix:  ${AFTER_SHA:0:12}"
 echo "############################################"
-PORT="${PORT_AFTER}" "${HARNESS_DIR}/run_test.sh" "${AFTER_SHA}" "after"
+PORT="${PORT_AFTER}" "${HARNESS_DIR}/run_test.sh" "${AFTER_SHA}" "after-${AFTER_SHA:0:12}"
 AFTER_STATUS=$?
 
 # Status 2 means the harness itself failed (build error, no resets observed),

@@ -148,9 +148,12 @@ Each run leaves its artifacts in `run/<label>/`, preserved for inspection:
 To confirm a run genuinely exercised the failure path rather than avoiding it:
 
 ```bash
-grep -c 'connection timeout' run/after/server.log   # resets the server forced
-grep 'Connection reset' run/after/vector.log        # the sink hitting them
+grep -c 'connection timeout' run/after-*/server.log   # resets the server forced
+grep 'Connection reset' run/after-*/vector.log        # the sink hitting them
 ```
+
+`run_comparison.sh` labels its runs `before-<sha>` and `after-<sha>`, so results
+from different commits sit side by side rather than overwriting each other.
 
 ### Tunables
 
@@ -186,6 +189,29 @@ make clean-harness   # everything, including cached Vector builds (~10 GB)
 Revisions are pinned as exact SHAs in [`revisions.env`](./revisions.env) — a
 branch name moves, a SHA does not, so a recorded result stays reproducible.
 Update them when the PR is rebased, and re-record the results below.
+
+### Testing a different commit
+
+Both SHAs are environment-overridable, so a one-off run needs no file edit:
+
+```bash
+BEFORE_SHA=<base> AFTER_SHA=<fix> ./run_comparison.sh
+```
+
+**Pair the fix with its own merge base.** Whenever the fix branch is rebased or
+merges master, its baseline moves with it:
+
+```bash
+git -C ~/source/vector merge-base <after-sha> origin/master   # → BEFORE_SHA
+```
+
+Testing a merged fix against a stale base sweeps every unrelated master change
+in between into the comparison, so a difference in results can no longer be
+attributed to the socket sink. Same-merge-base pairing keeps the sink the only
+variable.
+
+Edit `revisions.env` instead of exporting when the new pair is the one that
+should be recorded, and refresh the results below in the same change.
 
 Vector is built with `--no-default-features --features
 sources-file,sinks-socket,sinks-file`, which is everything the harness config
