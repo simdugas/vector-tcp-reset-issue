@@ -24,6 +24,22 @@ source "${HARNESS_DIR}/revisions.env"
 SHA="${1:?usage: build_vector.sh <sha>}"
 SHORT="${SHA:0:12}"
 
+CACHE_DIR="${HARNESS_DIR}/.cache"
+CLONE_DIR="${CACHE_DIR}/vector-src"
+WORKTREE_DIR="${CACHE_DIR}/wt-${SHORT}"
+BIN_DIR="${CACHE_DIR}/bin"
+BIN_PATH="${BIN_DIR}/vector-${SHORT}"
+
+mkdir -p "${BIN_DIR}"
+
+# Check the cache before the toolchain: re-running with binaries already built
+# needs neither protoc nor cmake.
+if [[ -x "${BIN_PATH}" ]]; then
+    echo "using cached binary for ${SHORT}" >&2
+    echo "${BIN_PATH}"
+    exit 0
+fi
+
 # Vector's build scripts invoke protoc (lib/vector-core/build.rs) and cmake.
 # Check up front rather than letting cargo fail minutes into a release build.
 if [[ -z "${PROTOC:-}" ]] && ! command -v protoc >/dev/null 2>&1; then
@@ -40,20 +56,6 @@ if ! command -v cmake >/dev/null 2>&1; then
     echo "       Install it (macOS: 'brew install cmake', Debian:" >&2
     echo "       'apt-get install -y cmake')." >&2
     exit 1
-fi
-
-CACHE_DIR="${HARNESS_DIR}/.cache"
-CLONE_DIR="${CACHE_DIR}/vector-src"
-WORKTREE_DIR="${CACHE_DIR}/wt-${SHORT}"
-BIN_DIR="${CACHE_DIR}/bin"
-BIN_PATH="${BIN_DIR}/vector-${SHORT}"
-
-mkdir -p "${BIN_DIR}"
-
-if [[ -x "${BIN_PATH}" ]]; then
-    echo "using cached binary for ${SHORT}" >&2
-    echo "${BIN_PATH}"
-    exit 0
 fi
 
 # Reuse an existing local Vector clone when one is available -- the common case
