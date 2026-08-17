@@ -68,25 +68,60 @@ nothing.
   harness from inside `flox activate` in a Vector checkout also satisfies this.
 - ~10 GB disk for the Vector clone, worktrees, and shared cargo target dir
 
-### Run both revisions and compare
+### Start here: check the assertion logic
+
+This needs no Vector build and finishes in about a second. It is the fastest way
+to confirm the harness is intact:
 
 ```bash
-make -C .. tcp_server           # build the collector
-./run_comparison.sh
+make test-assert          # from the repository root
 ```
 
-This builds both pinned revisions, runs the test against each, and compares.
-Expect the pre-fix revision to lose lines and the fixed revision to lose none.
+### Run both revisions and compare
 
-To reuse an existing Vector clone instead of cloning fresh (much faster):
+From the repository root:
 
 ```bash
-VECTOR_LOCAL_CHECKOUT=~/source/vector ./run_comparison.sh
+make            # build tcp_server, the collector
+make test       # run both pinned revisions and compare
+```
+
+Expect the pre-fix revision to lose lines and the fixed revision to lose none;
+the run ends with a `RESULT:` line. With both binaries already cached this takes
+roughly two minutes.
+
+`make test` works without a build toolchain as long as the binaries are cached,
+because `build_vector.sh` checks its cache before checking for `protoc`.
+
+#### First run, or after `make clean-harness`
+
+Building Vector needs `protoc` and `cmake`. The Vector repo's Flox environment
+provides both, so the simplest route is to run the harness inside it:
+
+```bash
+cd harness
+flox activate --dir ~/source/vector -- sh -c './run_comparison.sh'
+```
+
+Budget around 10 minutes per revision for a cold release build (two revisions,
+built sequentially). The second is not much faster than the first: they share a
+cargo target dir, but `lto = "fat"` means the final link dominates either way.
+
+By default this clones Vector into `harness/.cache/`. To reuse a checkout you
+already have — much faster, and no multi-gigabyte download:
+
+```bash
+flox activate --dir ~/source/vector -- sh -c \
+  'VECTOR_LOCAL_CHECKOUT=~/source/vector ./run_comparison.sh'
 ```
 
 The local clone is only ever read from. Each revision is built in its own
 detached `git worktree`, so your HEAD, branches, and uncommitted work are left
-untouched.
+untouched. Remove the worktrees when you are done:
+
+```bash
+git -C ~/source/vector worktree prune          # after make clean-harness
+```
 
 ### Run a single revision
 
@@ -96,6 +131,26 @@ untouched.
 
 Exit codes: `0` no loss, `1` lines lost, `2` the harness itself could not
 produce a valid result (build failure, or no resets observed).
+
+### Reading the output
+
+Each run leaves its artifacts in `run/<label>/`, preserved for inspection:
+
+| File | What it holds |
+| --- | --- |
+| `ingested.log` | What Vector read from the source — the expected set |
+| `received.log` | What the TCP server actually collected |
+| `vector.log` | Vector's own log; `grep 'Connection reset'` for the sink errors |
+| `server.log` | Connection lifecycle, including each reset |
+| `pipe.log` | The generated numbered lines |
+| `vector.toml` | The config used, rendered from the template |
+
+To confirm a run genuinely exercised the failure path rather than avoiding it:
+
+```bash
+grep -c 'connection timeout' run/after/server.log   # resets the server forced
+grep 'Connection reset' run/after/vector.log        # the sink hitting them
+```
 
 ### Tunables
 
@@ -112,6 +167,19 @@ Environment variables accepted by `run_test.sh`:
 
 `PAUSE` must exceed `SERVER_TIMEOUT`; the harness refuses to run otherwise,
 since without a reset there is nothing to test.
+
+If a run exits `2` reporting no resets, widen the reset window:
+
+```bash
+PAUSE=5 SERVER_TIMEOUT=1 LINE_COUNT=1000 ./run_test.sh <sha>
+```
+
+### Cleaning up
+
+```bash
+make clean-runs      # per-run artifacts only; keeps the expensive build cache
+make clean-harness   # everything, including cached Vector builds (~10 GB)
+```
 
 ## Pinned revisions
 
@@ -151,12 +219,15 @@ Reset counts vary run to run with timing; the pass/fail outcome does not.
 
 ## Verifying the harness
 
-The assertion logic has its own checks, including the masked-loss case where a
-duplicate hides a missing line and totals match:
+The assertion logic decides pass/fail, so it has its own checks — including the
+masked-loss case where a duplicate hides a missing line and the totals match,
+which is exactly what a count-based check gets wrong:
 
 ```bash
-./test_assert.sh
+./test_assert.sh          # or: make test-assert, from the repository root
 ```
+
+All eight checks should report `ok`.
 
 ## Files
 

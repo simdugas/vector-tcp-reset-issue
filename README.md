@@ -9,13 +9,19 @@ post-fix Vector revisions, collects numbered lines mechanically, and asserts
 that none are missing after a reconnect — see [`harness/`](./harness/README.md):
 
 ```bash
+make test-assert # self-checks for the assertion logic only (~1s, no build)
 make test        # runs both pinned revisions and compares
-make test-assert # self-checks for the assertion logic only
 ```
+
+The first run has to build two Vector binaries and needs `protoc` and `cmake`;
+see [Prerequisites](./harness/README.md#prerequisites) for that path. Once the
+binaries are cached, `make test` needs no build toolchain.
 
 The harness exits non-zero when lines are lost, so it works as a CI check.
 Duplicates are tolerated, since the socket sink is at-least-once. Measured
-results are recorded in [`harness/README.md`](./harness/README.md#recorded-results).
+results — the pre-fix revision losing 225 of 500 lines where the fix loses none
+— are recorded in
+[`harness/README.md`](./harness/README.md#recorded-results).
 
 The manual walkthrough below remains useful for watching the failure happen in
 real time.
