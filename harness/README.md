@@ -224,16 +224,65 @@ From `./run_comparison.sh` at the defaults (500 lines, bursts of 25, 3s idle,
 
 | Revision | Resets | Ingested | Received | Missing | Result |
 | --- | --- | --- | --- | --- | --- |
-| `8bd193189671` (before) | 11 | 500 | 275 | **225** | LOST LINES |
-| `178c470bad20` (after) | 12 | 500 | 500 | 0 | no loss |
+| `711f03abce4f` (before) | 11 | 500 | 275 | **225** | LOST LINES |
+| `1238ca45cd52` (after) | 12 | 500 | 500 | 0 | no loss |
 
 The pre-fix losses arrive in whole-burst blocks — `26-50, 76-100, 126-150,
-176-200, 226-250, 326-350, 376-400, 426-450, 476-500` — which is the signature
+176-200, 226-250, 301-325, 351-375, 401-425, 451-475` — which is the signature
 of a batch discarded when the connection dropped, rather than scattered
 individual drops.
 
-Both runs logged the same underlying failure on the sink, confirming the fixed
-revision took the error path and recovered rather than simply avoiding it:
+Abridged output:
+
+```
+############################################
+# BEFORE fix: 711f03abce4f
+############################################
+=== Running delivery test [before-711f03abce4f] ===
+  revision:   711f03abce4f7a65e3a84b8893be60675a8aef39
+  lines:      500 in bursts of 25, 3s idle between
+  server:     127.0.0.1:6100, resets after 2s idle
+connection resets observed: 11
+
+Delivery report [before-711f03abce4f]
+=====================================
+  ingested (expected):    500 lines,    500 unique
+  received  (on wire):    275 lines,    275 unique
+  duplicated (allowed):     0
+  missing    (failure):   225
+
+FAIL: 225 ingested line(s) never reached the TCP server.
+  missing sequences: 26-50, 76-100, 126-150, 176-200, 226-250, 301-325, 351-375, 401-425, 451-475
+
+############################################
+# AFTER fix:  1238ca45cd52
+############################################
+=== Running delivery test [after-1238ca45cd52] ===
+  revision:   1238ca45cd52ee7f4323a95607d0693f0e29c454
+  lines:      500 in bursts of 25, 3s idle between
+  server:     127.0.0.1:6101, resets after 2s idle
+connection resets observed: 12
+
+Delivery report [after-1238ca45cd52]
+====================================
+  ingested (expected):    500 lines,    500 unique
+  received  (on wire):    500 lines,    500 unique
+  duplicated (allowed):     0
+  missing    (failure):     0
+
+PASS: every ingested line reached the TCP server at least once.
+
+############################################
+# Summary
+############################################
+  before (711f03abce4f): LOST LINES
+  after  (1238ca45cd52): no loss
+
+RESULT: PASS -- the pre-fix revision loses lines and the fix does not.
+```
+
+Both revisions logged the same underlying failure on the sink, confirming the
+fixed one took the error path and recovered rather than simply avoiding it:
 
 ```
 ERROR sink{component_id=socket_out component_type=socket}: Error sending data.
