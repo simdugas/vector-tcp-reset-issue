@@ -2,6 +2,24 @@
 
 This repository demonstrates how Vector encounters log loss when the server side of a TCP connection is reset.
 
+## Automated test
+
+For a fully automated regression test — one that pins the exact pre-fix and
+post-fix Vector revisions, collects numbered lines mechanically, and asserts
+that none are missing after a reconnect — see [`harness/`](./harness/README.md):
+
+```bash
+make test        # runs both pinned revisions and compares
+make test-assert # self-checks for the assertion logic only
+```
+
+The harness exits non-zero when lines are lost, so it works as a CI check.
+Duplicates are tolerated, since the socket sink is at-least-once. Measured
+results are recorded in [`harness/README.md`](./harness/README.md#recorded-results).
+
+The manual walkthrough below remains useful for watching the failure happen in
+real time.
+
 ## Demonstration
 
 This repository implements a simple TCP server that outputs the state of TCP connections,

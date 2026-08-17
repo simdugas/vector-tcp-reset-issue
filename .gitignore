@@ -1,3 +1,8 @@
 tcp_server
 tcp_client
 **/data/**
+
+# Harness build cache (Vector clone, worktrees, cargo target dir, binaries)
+harness/.cache/
+# Per-run output (generated configs, logs, collected lines)
+harness/run/

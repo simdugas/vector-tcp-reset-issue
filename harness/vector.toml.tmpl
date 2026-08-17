@@ -1,0 +1,39 @@
+data_dir = "@DATA_DIR@"
+
+# Read the numbered lines the generator appends. `beginning` (rather than the
+# `end` used in the manual demo) makes each run deterministic: every line the
+# generator writes is guaranteed to be ingested, so the assertion can't pass
+# just because Vector started late and never saw the data.
+[sources.file_logs]
+type = "file"
+include = ["@PIPE_LOG@"]
+read_from = "beginning"
+
+# Ground truth: what Vector actually ingested from the source. This is the
+# "expected" set the assertion is built from. Teeing the same source into a
+# local file sink means the expectation comes from Vector itself rather than
+# from what the generator believes it wrote.
+[sinks.ingested]
+type = "file"
+inputs = ["file_logs"]
+path = "@INGESTED_LOG@"
+
+[sinks.ingested.encoding]
+codec = "text"
+
+[sinks.ingested.framing]
+method = "newline_delimited"
+
+# The component under test. The TCP server on the far end resets this
+# connection on an idle timeout; every line ingested above must still arrive.
+[sinks.socket_out]
+type = "socket"
+inputs = ["file_logs"]
+address = "127.0.0.1:@PORT@"
+mode = "tcp"
+
+[sinks.socket_out.encoding]
+codec = "text"
+
+[sinks.socket_out.framing]
+method = "newline_delimited"
